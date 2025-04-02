@@ -1,5 +1,5 @@
 {
-	"name": "fastify-template",
+	"name": "agent-qc-api",
 	"version": "1.0.0",
 	"description": "This project is a fastify template",
 	"main": "src/server.ts",
@@ -21,6 +21,7 @@
 		"@fastify/cors": "^8.3.0",
 		"@fastify/env": "^4.2.0",
 		"@fastify/jwt": "^7.2.1",
+		"@fastify/multipart": "^8.3.1",
 		"@fastify/redis": "^6.1.1",
 		"@fastify/sensible": "^5.3.0",
 		"@fastify/swagger": "^8.10.0",

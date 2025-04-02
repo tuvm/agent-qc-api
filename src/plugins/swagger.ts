@@ -26,7 +26,7 @@ export default fastifyPlugin(
 			routePrefix: '/api/docs',
 			initOAuth: {},
 			uiConfig: {
-				docExpansion: 'full',
+				docExpansion: 'none',
 				deepLinking: false,
 			},
 			staticCSP: true,
