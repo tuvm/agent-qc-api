@@ -1,0 +1,26 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# env configuration
+.env
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# Compiled typescript
+build
+
+# Dependency directories
+node_modules
+
+# vim swap files
+*.swp
+
+# webstorm
+.idea
+
+# vscode
+.vscode
+*code-workspace
