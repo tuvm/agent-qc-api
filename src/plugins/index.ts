@@ -16,7 +16,11 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
 	await Promise.all([
 		// fastify.register(prisma),
 		// fastify.register(redis),
-    fastify.register(multipart),
+    fastify.register(multipart, {
+      limits: {
+        fileSize: 100 * 1024 * 1024, // 100MB
+      },
+    }),
 		fastify.register(cookie),
 		fastify.register(cors),
 		fastify.config.NODE_ENV === 'local'
