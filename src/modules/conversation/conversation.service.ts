@@ -2,7 +2,6 @@ import { FastifyInstance } from 'fastify';
 import { CreateConversationInput, UpdateConversationInput, AudioFile } from './conversation.schema';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
 import { convertToWav } from '../../utils/audioConverter';
 import { AudioConfig, ConversationTranscriber, PropertyId, ResultReason, SpeechConfig } from 'microsoft-cognitiveservices-speech-sdk';
@@ -10,12 +9,14 @@ import { openPushStream } from '../../utils/filePushStream';
 import { processSpeakerSegments, Segment } from '../../utils/conversationProcess';
 import { promptLLM } from '../../utils/openAIHelper';
 import { jsonExtract } from '../../utils/jsonExtract';
-
+import { PrismaClient } from '@prisma/client';
+import fs from 'fs/promises';
 
 export default class ConversationService {
   private readonly uploadDir: string;
   private readonly processDir: string;
   private openai: OpenAI;
+  private prisma: PrismaClient;
 
   constructor(private readonly server: FastifyInstance) {
     this.uploadDir = join(process.cwd(), 'uploads', 'audio');
@@ -23,6 +24,7 @@ export default class ConversationService {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
+    this.prisma = new PrismaClient();
   }
 
   private async saveAudioFile(file: AudioFile): Promise<string> {
@@ -215,68 +217,98 @@ export default class ConversationService {
     let processedData: string | undefined = '';
 
     if (input.audioFile) {
-      // console.log('🚀 ~ ConversationService ~ createConversation ~ input:', input)
       audioUrl = await this.saveAudioFile(input.audioFile);
       processAudio = await this.convertToWav(audioUrl, input.audioFile.filename);
-      // transcription = await this.transcribeAudio(input.audioFile);
       transcription = await this.transcribeAudioWithAzure(processAudio);
-
       processedData = await promptLLM(transcription);
     }
 
     const jsonData = jsonExtract(processedData);
-    // console.log('🚀 ~ ConversationService ~ createConversation ~ processAudio:', processAudio)
 
-    // TODO: Implement database integration
-    return {
-      id: uuidv4(),
-      title: input.title,
-      description: input.description,
-      status: input.status,
-      audioUrl,
-      transcription,
-      processedData,
-      jsonData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    // Save to database
+    const conversation = await this.prisma.conversation.create({
+      data: {
+        title: input.title,
+        description: input.description,
+        status: input.status,
+        audioUrl,
+        transcription,
+        processedData,
+        jsonData,
+      },
+    });
+
+    return conversation;
   }
 
   async getConversation(id: string) {
-    // TODO: Implement database integration
-    return null;
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id },
+    });
+    return conversation;
   }
 
   async updateConversation(id: string, input: UpdateConversationInput) {
     let transcription = '';
     let audioUrl: string | undefined;
+    let processAudio: string | undefined;
 
     if (input.audioFile) {
       audioUrl = await this.saveAudioFile(input.audioFile);
-      // transcription = await this.transcribeAudio(input.audioFile);
+      processAudio = await this.convertToWav(audioUrl, input.audioFile.filename);
+      transcription = await this.transcribeAudioWithAzure(processAudio);
+      const processedData = await promptLLM(transcription);
+      const jsonData = jsonExtract(processedData);
+
+      return await this.prisma.conversation.update({
+        where: { id },
+        data: {
+          title: input.title,
+          description: input.description,
+          status: input.status,
+          audioUrl,
+          transcription,
+          processedData,
+          jsonData,
+        },
+      });
     }
 
-    // TODO: Implement database integration
-    return {
-      id,
-      title: input.title,
-      description: input.description,
-      status: input.status,
-      audioUrl,
-      transcription,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    return await this.prisma.conversation.update({
+      where: { id },
+      data: {
+        title: input.title,
+        description: input.description,
+        status: input.status,
+      },
+    });
   }
 
   async deleteConversation(id: string) {
-    console.log('Deleting conversation', id);
-    // TODO: Implement database integration and file deletion
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id },
+    });
+
+    if (conversation?.audioUrl) {
+      try {
+        await fs.unlink(conversation.audioUrl);
+      } catch (error) {
+        console.error('Error deleting audio file:', error);
+      }
+    }
+
+    await this.prisma.conversation.delete({
+      where: { id },
+    });
+
     return true;
   }
 
   async listConversations() {
-    // TODO: Implement database integration
-    return [];
+    return await this.prisma.conversation.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 } 

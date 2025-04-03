@@ -8,6 +8,9 @@ const conversationCore = {
   }).min(1),
   description: z.string().optional(),
   status: z.enum(['active', 'archived', 'deleted']).default('active'),
+  processedData: z.string().optional(),
+  jsonData: z.any().optional(),
+  transcription: z.string().optional(),
 };
 
 const audioFileSchema = z.object({

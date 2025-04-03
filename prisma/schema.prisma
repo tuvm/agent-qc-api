@@ -34,3 +34,16 @@ model UserSession {
     @@index([userId])
     @@index([userId, tokenFamily])
 }
+
+model Conversation {
+  id            String   @id @default(uuid())
+  title         String?
+  description   String?
+  status        String   @default("pending")
+  audioUrl      String?
+  transcription String?  @db.Text
+  processedData String?  @db.Text
+  jsonData      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
