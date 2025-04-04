@@ -4,7 +4,7 @@ import fastifyPlugin from 'fastify-plugin';
 import config from './config';
 import sensible from './sensible';
 import prisma from './prisma';
-// import redis from './redis';
+import redis from './redis';
 import swagger from './swagger';
 import cookie from './cookie';
 import cors from './cors';
@@ -15,7 +15,7 @@ export default fastifyPlugin(async (fastify: FastifyInstance) => {
 
 	await Promise.all([
 		fastify.register(prisma),
-		// fastify.register(redis),
+		fastify.register(redis),
     fastify.register(multipart, {
       limits: {
         fileSize: 100 * 1024 * 1024, // 100MB

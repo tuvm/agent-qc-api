@@ -1,3 +1,5 @@
+start-docker:
+	docker compose up -d
 migrate-dev:
 	pnpm exec prisma migrate dev
 migrate-deploy:

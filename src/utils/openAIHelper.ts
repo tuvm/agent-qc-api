@@ -14,8 +14,7 @@ const callChatGPT = async (prompt: string): Promise<string> => {
 
 export const promptLLM = async (transcript: string): Promise<string> => {
   const prompt = `
-    Bước 1: Sửa lỗi chính tả của đoạn hội thoại sau và giữ nguyên format thời gian.
-    Bước 2: Phân tích đoạn hội thoại chăm sóc khách hàng sau đây và trích xuất thông tin theo định dạng JSON.
+    Phân tích đoạn hội thoại chăm sóc khách hàng sau đây và trích xuất thông tin theo định dạng JSON.
     ### **Yêu cầu xử lý:**
     - **Xác định & trích xuất thông tin theo các tiêu chí sau:**
     1. **Thông tin khách hàng**:  
