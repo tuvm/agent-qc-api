@@ -39,11 +39,10 @@ model Conversation {
   id            String   @id @default(uuid())
   title         String?
   description   String?
-  status        String   @default("pending")
-  audioUrl      String?
-  transcription String?  @db.Text
-  processedData String?  @db.Text
-  jsonData      Json?
+  uploadTask    Json?
+  convertTask   Json?
+  transcribeTask Json?
+  analyzeTask   Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

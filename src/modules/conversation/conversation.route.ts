@@ -72,7 +72,6 @@ export default async (fastify: FastifyInstance) => {
           properties: {
             title: { type: 'string' },
             description: { type: 'string' },
-            status: { type: 'string', enum: ['active', 'archived', 'deleted'] },
             audioFile: { type: 'string', format: 'binary' },
           },
         },

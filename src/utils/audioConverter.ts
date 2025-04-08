@@ -4,6 +4,7 @@ import fs from "fs";
 import { v4 as uuidv4 } from 'uuid';
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+import { Readable } from 'stream';
 
 const audioOutDir = path.join(__dirname, '../process/audio');
 if (!fs.existsSync(audioOutDir)) {
@@ -12,19 +13,27 @@ if (!fs.existsSync(audioOutDir)) {
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-export function convertToWav(inputFile: string, outputFile: string) {
+export function convertToWav(inputBuffer: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
-        ffmpeg(inputFile)
+        const chunks: Buffer[] = [];
+        const inputStream = Readable.from(inputBuffer);
+        
+        const stream = ffmpeg()
+            .input(inputStream)
             .toFormat('wav')
             .on('end', () => {
-                console.log('Conversion finished:', outputFile);
-                resolve(outputFile);
+                const outputBuffer = Buffer.concat(chunks);
+                resolve(outputBuffer);
             })
             .on('error', (err: Error) => {
                 console.error('Error:', err);
                 reject(err);
             })
-            .save(outputFile);
+            .pipe();
+
+        stream.on('data', (chunk: Buffer) => {
+            chunks.push(chunk);
+        });
     });
 }
 

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
-import { CreateConversationInput, UpdateConversationInput, AudioFile } from './conversation.schema';
+import { CreateConversationInput, UpdateConversationInput, AudioFile, UploadTask, TaskStatus } from './conversation.schema';
 import { writeFile } from 'fs/promises';
+import { v4 as uuidv4 } from 'uuid';
 import { join } from 'path';
 import OpenAI from 'openai';
 import { convertToWav } from '../../utils/audioConverter';
@@ -11,6 +12,8 @@ import { promptLLM } from '../../utils/openAIHelper';
 import { jsonExtract } from '../../utils/jsonExtract';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs/promises';
+import { minioClient } from '../../plugins/minio';
+import { rabbitmq } from '../../plugins/rabbitmq';
 
 export default class ConversationService {
   private readonly uploadDir: string;
@@ -216,26 +219,51 @@ export default class ConversationService {
     let processAudio: string | undefined;
     let processedData: string | undefined = '';
 
+    let uploadTask: UploadTask;
+    const conversationId = uuidv4();
+    
     if (input.audioFile) {
-      audioUrl = await this.saveAudioFile(input.audioFile);
-      processAudio = await this.convertToWav(audioUrl, input.audioFile.filename);
-      transcription = await this.transcribeAudioWithAzure(processAudio);
-      processedData = await promptLLM(transcription);
+      const contentType = input.audioFile.mimetype;
+      const fileName = conversationId + '_' + input.audioFile.filename;
+      await minioClient.putObject(
+        process.env.MINIO_BUCKET_RAW_AUDIO || '',
+        fileName,
+        input.audioFile.data,
+        input.audioFile.data.length,
+        { 'Content-Type': contentType }
+      );
+      uploadTask = {
+        status: TaskStatus.SUCCESS,
+        filename: fileName,
+        mimetype: contentType,
+      };
+      
+      // audioUrl = await this.saveAudioFile(input.audioFile);
+      // processAudio = await this.convertToWav(audioUrl, input.audioFile.filename);
+      // transcription = await this.transcribeAudioWithAzure(processAudio);
+      // processedData = await promptLLM(transcription);
+    } else {
+      uploadTask = {
+        status: TaskStatus.FAILED,
+        reason: 'No audio file provided',
+      };
     }
 
-    const jsonData = jsonExtract(processedData);
+    const newConversation = {
+      id: conversationId,
+      title: input.title,
+      description: input.description,
+      uploadTask: uploadTask,
+      convertTask: {},
+      transcribeTask: {},
+      analyzeTask: {},
+    }
+    // const jsonData = jsonExtract(processedData);
+    await rabbitmq.channel?.sendToQueue('audio.convert', Buffer.from(JSON.stringify(newConversation)));
 
     // Save to database
     const conversation = await this.prisma.conversation.create({
-      data: {
-        title: input.title,
-        description: input.description,
-        status: input.status,
-        audioUrl,
-        transcription,
-        processedData,
-        jsonData,
-      },
+      data: newConversation,
     });
 
     return conversation;
@@ -265,7 +293,7 @@ export default class ConversationService {
         data: {
           title: input.title,
           description: input.description,
-          status: input.status,
+          // status: input.status,
           audioUrl,
           transcription,
           processedData,
@@ -279,7 +307,7 @@ export default class ConversationService {
       data: {
         title: input.title,
         description: input.description,
-        status: input.status,
+        // status: input.status,
       },
     });
   }
